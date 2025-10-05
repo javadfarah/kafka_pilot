@@ -107,6 +107,25 @@ kafka_pilot/
 Processors must inherit from `MessageProcessor` and define:
 
 - `topic_conf` — topics and settings
+## 🛠 Topic Config Inputs
+```
+topics   # Kafka topics name
+max_retries    # Maximum retry attempts for failed messages
+backoff_ms    # Initial backoff time in milliseconds
+backoff_multiplier    # Backoff multiplier for exponential retry
+processing_timeout_s    # Processing timeout in seconds
+lag_policy    # Lag policy method
+isolation_level    # isolation_level
+auto_commit    # true/false
+acceptable_lag    # Maximum number of leg between consumer and last produced message
+kafka_bootstrap_servers    # kafka bootstrap servers (str separate by ,)
+sasl_mechanism    # kafka sasl mechanism
+security_protocol    # security protocol
+kafka_username    
+kafka_password    
+kafka_group_id    
+```
+
 - `process_message()` — your Kafka message handling logic
 
 ```python
