@@ -1,0 +1,1 @@
+from .processor_interface import MessageProcessor

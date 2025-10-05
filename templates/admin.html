@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafka Worker Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #1a3c34;
+        }
+        .logo { text-align: center; margin-bottom: 20px; }
+        img { max-width: 10rem;max-height: 20rem}
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #1a3c34;
+            color: #fff;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .action-btn {
+            padding: 8px 12px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        .start-btn {
+            background-color: #2ecc71;
+            color: #fff;
+        }
+        .start-btn:hover {
+            background-color: #27ae60;
+        }
+        .stop-btn {
+            background-color: #e74c3c;
+            color: #fff;
+        }
+        .stop-btn:hover {
+            background-color: #c0392b;
+        }
+        .logs-btn {
+            background-color: #3498db;
+            color: #fff;
+        }
+        .logs-btn:hover {
+            background-color: #2980b9;
+        }
+        .running { color: #2ecc71; font-weight: bold; }
+        .stopped { color: #e74c3c; font-weight: bold; }
+        .failed { color: #e67e22; font-weight: bold; }
+        .error-message {
+            color: #e74c3c;
+            padding: 10px;
+            background-color: #ffe6e6;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .modal-header {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #1a3c34;
+        }
+        .modal-close {
+            float: right;
+            cursor: pointer;
+            font-size: 1.5em;
+            color: #555;
+            transition: color 0.2s;
+        }
+        .modal-close:hover {
+            color: #000;
+        }
+        .log-entry {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+            word-break: break-word;
+            background-color: #fafafa;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <img src="static/kafka_pilot.png" alt="Kafka Pilot Logo",>
+    </div>
+    <div class="container">
+        <h1>Kafka Worker Dashboard</h1>
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div id="workers"></div>
+        <div id="logsModal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+                <div class="modal-header" id="modalHeader"></div>
+                <div id="modalLogs"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Polyfill for crypto.randomUUID
+        if (!crypto.randomUUID) {
+            crypto.randomUUID = function() {
+                const bytes = new Uint8Array(16);
+                crypto.getRandomValues(bytes);
+                bytes[6] = (bytes[6] & 0x0f) | 0x40; // Set version 4
+                bytes[8] = (bytes[8] & 0x3f) | 0x80; // Set variant
+                const hex = Array.from(bytes)
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+                return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+            };
+        }
+
+        async function fetchWorkers() {
+            try {
+                const response = await fetch('/api/workers', { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                const workers = await response.json();
+                if (workers.error) {
+                    showError(`Error: ${workers.error} - ${workers.details}`);
+                    return;
+                }
+                const container = document.getElementById('workers');
+                let html = '<table><tr><th>Topic</th><th>Worker ID</th><th>Status</th><th>Partitions</th><th>Actions</th></tr>';
+
+                for (const [topic, workerData] of Object.entries(workers)) {
+                    for (const [workerId, data] of Object.entries(workerData)) {
+                        const statusClass = data.status === 'running' ? 'running' : data.status === 'stopped' ? 'stopped' : 'failed';
+                        html += `<tr>
+                            <td>${topic}</td>
+                            <td>${workerId}</td>
+                            <td class="${statusClass}">${data.status}</td>
+                            <td>${data.partitions ? data.partitions.join(', ') : ''}</td>
+                            <td>
+                                ${data.status === 'running' ?
+                                    `<button class="action-btn stop-btn" onclick="stopWorker('${topic}', '${workerId}')">Stop</button>` :
+                                    `<button class="action-btn start-btn" onclick="startWorker('${topic}', '${workerId}')">Start</button>`}
+                                <button class="action-btn logs-btn" onclick="viewLogs('${topic}', '${workerId}')">View Logs</button>
+                            </td>
+                        </tr>`;
+                    }
+                }
+                html += '</table>';
+                container.innerHTML = html;
+                document.getElementById('errorMessage').style.display = 'none';
+            } catch (error) {
+                showError(`Error fetching workers: ${error.message}`);
+            }
+        }
+
+        async function startWorker(topic, workerId) {
+            try {
+                const response = await fetch(`/api/workers/${topic}/${workerId}/start`, { method: 'POST' });
+                const result = await response.json();
+                if (result.status === 'started') {
+                    showSuccess(`Worker ${workerId} for topic ${topic} started`);
+                    fetchWorkers();
+                } else {
+                    showError(`Error: ${result.message || 'Failed to start worker'}`);
+                }
+            } catch (error) {
+                showError(`Error starting worker: ${error.message}`);
+            }
+        }
+
+        async function stopWorker(topic, workerId) {
+            try {
+                const response = await fetch(`/api/workers/${topic}/${workerId}/stop`, { method: 'POST' });
+                const result = await response.json();
+                if (result.status === 'stopped') {
+                    showSuccess(`Worker ${workerId} for topic ${topic} stopped`);
+                    fetchWorkers();
+                } else {
+                    showError(`Error: ${result.message || 'Failed to stop worker'}`);
+                }
+            } catch (error) {
+                showError(`Error stopping worker: ${error.message}`);
+            }
+        }
+
+        async function viewLogs(topic, workerId) {
+            try {
+                const response = await fetch(`/api/logs/${topic}/${workerId}`);
+                const logs = await response.json();
+                if (logs.error) {
+                    showError(`Error fetching logs: ${logs.details}`);
+                    return;
+                }
+                const modal = document.getElementById('logsModal');
+                const modalHeader = document.getElementById('modalHeader');
+                const modalLogs = document.getElementById('modalLogs');
+                modalHeader.textContent = `Logs for Worker ${workerId} (Topic: ${topic})`;
+                modalLogs.innerHTML = logs.length > 0
+                    ? logs.map(log => `<div class="log-entry">${log}</div>`).join('')
+                    : '<div class="log-entry">No logs available</div>';
+                modal.style.display = 'flex';
+            } catch (error) {
+                showError(`Error fetching logs: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.backgroundColor = '#e6ffed';
+            errorDiv.style.color = '#2ecc71';
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function closeModal() {
+            document.getElementById('logsModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('logsModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Fetch workers on page load and refresh every 10 seconds
+        fetchWorkers();
+        setInterval(fetchWorkers, 10000);
+    </script>
+</body>
+</html>
