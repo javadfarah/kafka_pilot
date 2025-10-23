@@ -168,7 +168,7 @@ Response:
 
 Kafka Pilot follows:
 - **SOLID principles**
-- **Dependency inversion** (easy to extend to other brokers like Redis or RabbitMQ)
+- **Dependency inversion** (easy to extend)
 - **Separation of concerns** (producers, consumers, retry, DLQ, lag policies)
 - **Extensibility** through pluggable processor modules
 
