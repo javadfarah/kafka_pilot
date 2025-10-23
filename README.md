@@ -1,5 +1,5 @@
 # Kafka Pilot
-
+<img width="1024" height="1024" alt="kafka_pilot" src="https://github.com/user-attachments/assets/0b24ef00-8d25-4cb4-b4c5-fd07c1b9bf67" />
 **Kafka Pilot** is an asynchronous, modular Kafka worker management system built with **FastAPI**, **aiokafka**, and **Redis**.  
 It provides a framework for building fault-tolerant Kafka consumers with retry logic, DLQ support, lag policies, and a simple web admin panel.
 
