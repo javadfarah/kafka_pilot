@@ -1,160 +1,194 @@
 # Kafka Pilot
 
-Kafka Pilot is an asynchronous FastAPI-based application for managing Kafka consumers.  
-It provides Redis-backed tracking, configurable lag policies, retries, a Dead Letter Queue (DLQ) mechanism, and a built‑in web admin panel.  
-
-It’s designed to help you easily manage scalable, exactly‑once Kafka message processing with minimal boilerplate.
+**Kafka Pilot** is an asynchronous, modular Kafka worker management system built with **FastAPI**, **aiokafka**, and **Redis**.  
+It provides a framework for building fault-tolerant Kafka consumers with retry logic, DLQ support, lag policies, and a simple web admin panel.
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
-- **Async Kafka Consumers** — Optimized for high throughput and low latency.
-- **Redis Integration** — Tracks offsets, states, and metadata centrally.
-- **Lag Policies** — Start‑of‑day offsets, seek‑to‑end, and custom strategies.
-- **Retries & DLQ** — Automatic error handling with Dead Letter Queue topics.
-- **Automatic Processor Registration** — One processor per topic with dynamic loading.
-- **Web Admin Panel** — Monitor workers and topics in real‑time via dashboard.
-- **Graceful Lifecycle** — Clean startup/shutdown with health check endpoint.
+- **Async Kafka consumers** powered by `aiokafka`
+- **Redis-backed** state tracking
+- **Configurable lag policies** (e.g., seek-to-beginning, seek-to-end)
+- **Retry & DLQ** (Dead Letter Queue) handling
+- **Dynamic processor loading** – one processor per topic
+- **Web Admin Panel** to monitor topics, workers, and processors
+- **Health check endpoints**
+- **Clean modular architecture** following SOLID principles
 
 ---
 
-## 📦 Installation
+## 🧩 Project Structure
+
+```
+kafka_pilot/
+  ├── config.py
+  ├── main.py                # FastAPI entrypoint
+  ├── worker.py              # Kafka worker manager
+  ├── web_admin.py           # Admin web interface
+  ├── processors/            # Topic processors
+  ├── lag_policies/          # Lag handling policies
+  ├── db/
+  │   └── redis.py           # Redis connection wrapper
+  └── utils/                 # Helpers & loggers
+```
+
+---
+
+## ⚙️ Requirements
+
+- **Python** ≥ 3.10  
+- **Kafka** cluster (tested with Apache Kafka ≥ 3.x)
+- **Redis** instance (for state and offset tracking)
+
+---
+
+## 🛠 Installation
 
 ```bash
-git clone https://github.com/<your-username>/kafka-pilot.git
-cd kafka-pilot
+git clone https://github.com/javadfarah/kafka_pilot.git
+cd kafka_pilot
 pip install -r requirements.txt
 ```
 
-Ensure you have:
-- **Python** >= 3.10
-- **Kafka** cluster accessible
-- **Redis** running
-
 ---
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
-Kafka Pilot uses environment variables (via `.env` file) to configure Kafka and Redis.
+Kafka Pilot uses environment variables or a `.env` file for configuration.
 
-Example `.env`:
+Example `.env` file:
 
 ```env
+# Environment
 ENVIRONMENT=dev
+
+# Redis configuration
 KFP__REDIS_HOST=localhost
 KFP__REDIS_PORT=6379
 KFP__REDIS_DB_NUMBER=0
 KFP__REDIS_PASSWORD=
+
+# Kafka configuration
+KFP__KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KFP__KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+KFP__KAFKA_GROUP_ID=kafka-pilot-group
+
+# Processor directory
 KFP__KAFKA_CONF_DIRECTORY=./processors
 ```
 
-- **KFP__KAFKA_CONF_DIRECTORY** should point to a directory containing your topic processor classes.
-
 ---
 
-## 🚀 Running Kafka Pilot
+## ▶️ Run the Application
 
-### With Uvicorn
+### Using Uvicorn (recommended)
 ```bash
-python -m kafka_pilot.main
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-or
-
+### Or directly
 ```bash
-uvicorn kafka_pilot.main:app --host 0.0.0.0 --port 8000
+python main.py
 ```
 
 ---
 
-## 🌐 Web Admin
+## 🌐 Web Admin Panel
 
-Once running, open:
+Once the service is running, the admin panel is available at:
 
 ```
 http://localhost:8000/admin
 ```
 
-There you can monitor:
-- Active workers
-- Assigned topics
-- Processor classes
-- Consumer status
+It shows worker status, registered processors, topic lag info, and configuration details.
 
 ---
 
-## 📂 Project Structure
+## 🧠 Creating a Processor
 
-```
-kafka_pilot/
-  ├── config.py               # Settings and .env parsing
-  ├── main.py                 # FastAPI app entrypoint
-  ├── worker.py               # KafkaWorker class
-  ├── web_admin.py            # Web interface setup
-  ├── processors/             # Your Kafka message processors
-  ├── lag_policies/           # Seek/start logic classes
-  ├── db/redis.py             # Redis client
-  └── utils/json_logger.py    # JSON log formatter
-```
+Each topic processor should inherit from `MessageProcessor` and define its configuration via `TopicConf`.
 
----
-
-## 🛠 Creating a Processor
-
-Processors must inherit from `MessageProcessor` and define:
-
-- `topic_conf` — topics and settings
-## 🛠 Topic Config Inputs
-```
-topics   # Kafka topics name
-max_retries    # Maximum retry attempts for failed messages
-backoff_ms    # Initial backoff time in milliseconds
-backoff_multiplier    # Backoff multiplier for exponential retry
-processing_timeout_s    # Processing timeout in seconds
-lag_policy    # Lag policy method
-isolation_level    # isolation_level
-auto_commit    # true/false
-acceptable_lag    # Maximum number of leg between consumer and last produced message
-kafka_bootstrap_servers    # kafka bootstrap servers (str separate by ,)
-sasl_mechanism    # kafka sasl mechanism
-security_protocol    # security protocol
-kafka_username    
-kafka_password    
-kafka_group_id    
-```
-
-- `process_message()` — your Kafka message handling logic
+Example: `processors/my_processor.py`
 
 ```python
-from kafka_pilot.processors import MessageProcessor
+from processors import MessageProcessor, TopicConf
 
 class MyProcessor(MessageProcessor):
-    topic_conf = TopicConf(topics="my-topic")
+    topic_conf = TopicConf(
+        topics="my-topic",
+        max_retries=5,
+        backoff_ms=500,
+        backoff_multiplier=2,
+        processing_timeout_s=30,
+    )
 
     async def process_message(self, message):
-        print(f"Got: {message.value}")
+        print(f"Processing: {message.value}")
+        # Your custom logic here
 ```
 
-Place your processor file in the configured directory.
+Simply place the file inside your configured processors directory (`./processors`).
+
+---
+
+## ⚙️ TopicConf Parameters
+
+| Parameter | Description |
+|------------|--------------|
+| `topics` | Kafka topic name(s) |
+| `max_retries` | Max retry attempts before sending to DLQ |
+| `backoff_ms` | Initial backoff delay in milliseconds |
+| `backoff_multiplier` | Exponential backoff multiplier |
+| `processing_timeout_s` | Message processing timeout in seconds |
+| `lag_policy` | Lag management strategy (customizable) |
+| `acceptable_lag` | Threshold before triggering lag handling |
+| `auto_commit` | Whether offsets are auto-committed |
+| `kafka_bootstrap_servers`, `group_id`, etc. | Kafka client options |
 
 ---
 
 ## 🩺 Health Check
 
-Kafka Pilot exposes `/health`:
+A health endpoint is available for monitoring:
 
-```
+```bash
 GET /health
-{
-  "status": "healthy"
-}
+```
+
+Response:
+```json
+{ "status": "healthy" }
 ```
 
 ---
 
-## 📜 License
+## 🧱 Design Principles
 
-MIT License — feel free to use, modify, and share.
+Kafka Pilot follows:
+- **SOLID principles**
+- **Dependency inversion** (easy to extend to other brokers like Redis or RabbitMQ)
+- **Separation of concerns** (producers, consumers, retry, DLQ, lag policies)
+- **Extensibility** through pluggable processor modules
 
 ---
+
+## 📄 License
+
+**MIT License** — You are free to use, modify, and distribute this project with attribution.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!  
+Feel free to open issues or pull requests to improve the framework.
+
+---
+
+## 📬 Contact
+
+**Author:** MJ Farahnak  
+GitHub: [@javadfarah](https://github.com/javadfarah)  
+Email: *available on profile*
