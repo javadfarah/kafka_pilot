@@ -3,292 +3,1642 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafka Worker Dashboard</title>
+    <title>Kafka Pilot Admin</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem("kafka-pilot-theme");
+            const preferred = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            document.documentElement.dataset.theme = saved || preferred;
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-            color: #333;
+        :root {
+            color-scheme: light;
+            --bg: #f7f7ff;
+            --bg-elevated: #ffffff;
+            --bg-card: #ffffff;
+            --bg-hover: #f0f0fa;
+            --border: #e2e1ec;
+            --border-strong: #c7c5d0;
+            --text: #1b1b21;
+            --text-muted: #5f5e67;
+            --text-dim: #777680;
+            --accent: #4f46e5;
+            --accent-dim: rgba(79, 70, 229, 0.10);
+            --green: #087f5b;
+            --green-bg: #e5f7f0;
+            --red: #ba1a1a;
+            --red-bg: #ffdad6;
+            --amber: #8a5a00;
+            --amber-bg: #ffedc2;
+            --blue: #00639b;
+            --blue-bg: #d0e8ff;
+            --surface-tint: rgba(79, 70, 229, 0.05);
+            --radius: 16px;
+            --shadow: 0 8px 32px rgba(28, 27, 31, 0.10);
+            --font: "Inter", system-ui, sans-serif;
+            --mono: "IBM Plex Mono", ui-monospace, monospace;
         }
-        h1 {
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            color: #1a3c34;
-        }
-        .logo { text-align: center; margin-bottom: 20px; }
-        img { max-width: 10rem;max-height: 20rem}
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #111118;
+            --bg-elevated: #1b1b23;
+            --bg-card: #202029;
+            --bg-hover: #292933;
+            --border: #393842;
+            --border-strong: #504f5b;
+            --text: #e5e1ec;
+            --text-muted: #c8c4d0;
+            --text-dim: #aaa6b2;
+            --accent: #c2c0ff;
+            --accent-dim: rgba(194, 192, 255, 0.14);
+            --green: #6ddbae;
+            --green-bg: rgba(109, 219, 174, 0.13);
+            --red: #ffb4ab;
+            --red-bg: rgba(255, 180, 171, 0.13);
+            --amber: #ffca7a;
+            --amber-bg: rgba(255, 202, 122, 0.13);
+            --blue: #92ccff;
+            --blue-bg: rgba(146, 204, 255, 0.13);
+            --surface-tint: rgba(194, 192, 255, 0.05);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.45;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 10% -20%, var(--accent-dim), transparent),
+                radial-gradient(ellipse 60% 40% at 90% 0%, var(--blue-bg), transparent);
+            transition: background-color 200ms ease-out, color 200ms ease-out;
+        }
+
+        .app { max-width: 1440px; margin: 0 auto; padding: 24px 24px 48px; }
+
+        /* Header */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px 24px;
+            margin-bottom: 32px;
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .brand-logo-frame {
+            position: relative;
+            width: 216px;
+            height: 64px;
+            overflow: hidden;
+            flex: 0 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: #000;
+            box-shadow: 0 8px 20px rgba(26, 153, 255, 0.18);
+        }
+
+        .brand-logo {
+            position: absolute;
+            top: -76px;
+            left: 0;
+            width: 216px;
+            height: 216px;
+            max-width: none;
+        }
+
+        .material-symbols-rounded {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .header-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+        }
+
+        .status-pill .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .status-pill.healthy .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .status-pill.degraded .dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+        .status-pill.unhealthy .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+        .meta-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-family: var(--mono);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 44px;
+            padding: 8px 16px;
+            border: 1px solid var(--border-strong);
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 150ms ease-out, border-color 150ms ease-out, opacity 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .btn:active { transform: scale(0.97); }
+        .btn:focus-visible, .toggle:focus-within, select:focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+            outline-offset: 2px;
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn:disabled:hover { background: var(--bg-elevated); border-color: var(--border-strong); }
+
+        .btn-primary {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn-primary:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+
+        .btn-danger {
+            background: var(--red-bg);
+            border-color: var(--red);
+            color: var(--red);
+        }
+        .btn-danger:hover { background: color-mix(in srgb, var(--red) 20%, transparent); }
+
+        .btn-success {
+            background: var(--green-bg);
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .btn-success:hover { background: color-mix(in srgb, var(--green) 20%, transparent); }
+
+        .btn-ghost { background: transparent; }
+
+        .btn-sm { min-height: 36px; padding: 6px 12px; font-size: 0.75rem; }
+
+        .icon-btn { width: 44px; padding: 0; }
+
+        .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            min-height: 44px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle input { accent-color: var(--accent); cursor: pointer; }
+
+        /* Toast */
+        .toast-wrap {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 380px;
+        }
+
+        .toast {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+            font-size: 0.85rem;
+            animation: slideIn 0.2s ease;
+        }
+
+        .toast.error { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+        .toast.success { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+        .toast.info { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Summary cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(28, 27, 31, 0.06);
+            transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+        }
+
+        .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            font-family: var(--mono);
+            letter-spacing: -0.03em;
+        }
+
+        .stat-card .value.green { color: var(--green); }
+        .stat-card .value.amber { color: var(--amber); }
+        .stat-card .value.red { color: var(--red); }
+        .stat-card .value.accent { color: var(--accent); }
+
+        /* Topic cards */
+        .topics { display: flex; flex-direction: column; gap: 16px; }
+
+        .topic-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(28, 27, 31, 0.08);
+        }
+
+        .topic-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 12px 20px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .topic-header:hover { background: var(--bg-hover); }
+
+        .topic-title-block { flex: 1; min-width: 180px; }
+
+        .topic-name {
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--mono);
+            word-break: break-all;
+        }
+
+        .topic-processor {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .topic-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: var(--mono);
+        }
+
+        .badge.ok { background: var(--green-bg); color: var(--green); }
+        .badge.warn { background: var(--amber-bg); color: var(--amber); }
+        .badge.err { background: var(--red-bg); color: var(--red); }
+        .badge.neutral { background: rgba(139, 154, 171, 0.12); color: var(--text-muted); }
+        .badge.metric { background: var(--blue-bg); color: var(--blue); }
+
+        .topic-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .topic-body {
+            display: none;
+            padding: 0;
+        }
+
+        .topic-card.open .topic-body { display: block; }
+
+        .topic-card .chevron {
+            color: var(--text-dim);
+            transition: transform 0.2s;
+            font-size: 0.9rem;
+            margin-left: 4px;
+        }
+
+        .topic-card.open .chevron { transform: rotate(90deg); }
+
+        .metrics-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px 28px;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-tint);
+            font-size: 0.8rem;
+        }
+
+        .metrics-row span { color: var(--text-muted); }
+        .metrics-row strong {
+            font-family: var(--mono);
+            font-weight: 500;
+            color: var(--text);
+            margin-left: 4px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            background-color: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 0.85rem;
         }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
+
         th {
-            background-color: #1a3c34;
-            color: #fff;
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
             font-weight: 600;
+            background: var(--surface-tint);
         }
-        tr:hover {
-            background-color: #f9f9f9;
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
         }
-        .action-btn {
-            padding: 8px 12px;
-            margin-right: 8px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background-color 0.2s;
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--surface-tint); }
+
+        .worker-id {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .start-btn {
-            background-color: #2ecc71;
-            color: #fff;
+
+        .partitions {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--accent);
         }
-        .start-btn:hover {
-            background-color: #27ae60;
+
+        .empty-state {
+            padding: 28px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
         }
-        .stop-btn {
-            background-color: #e74c3c;
-            color: #fff;
-        }
-        .stop-btn:hover {
-            background-color: #c0392b;
-        }
-        .logs-btn {
-            background-color: #3498db;
-            color: #fff;
-        }
-        .logs-btn:hover {
-            background-color: #2980b9;
-        }
-        .running { color: #2ecc71; font-weight: bold; }
-        .stopped { color: #e74c3c; font-weight: bold; }
-        .failed { color: #e67e22; font-weight: bold; }
-        .error-message {
-            color: #e74c3c;
-            padding: 10px;
-            background-color: #ffe6e6;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .modal {
+
+        .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        /* Modal */
+        .modal-backdrop {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            justify-content: center;
-            align-items: center;
+            inset: 0;
+            background: rgba(8, 12, 16, 0.72);
             z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            backdrop-filter: blur(4px);
         }
-        .modal-content {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+
+        .modal-backdrop.open { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-strong);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 760px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
         }
+
         .modal-header {
-            font-size: 1.3em;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            flex: 1;
+            font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 15px;
-            color: #1a3c34;
         }
-        .modal-close {
-            float: right;
-            cursor: pointer;
-            font-size: 1.5em;
-            color: #555;
-            transition: color 0.2s;
+
+        .modal-header .sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--mono);
+            margin-top: 4px;
+            word-break: break-all;
         }
-        .modal-close:hover {
-            color: #000;
+
+        .modal-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
         }
-        .log-entry {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            font-size: 0.9em;
-            word-break: break-word;
-            background-color: #fafafa;
-            margin-bottom: 5px;
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 18px 18px;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .log-line {
+            padding: 8px 10px;
+            margin-bottom: 4px;
             border-radius: 4px;
+            background: var(--surface-tint);
+            border-left: 3px solid var(--border-strong);
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text);
         }
-        .log-entry:last-child {
-            border-bottom: none;
+
+        .log-line.error-log { border-left-color: var(--red); }
+        .log-line.dlq-log { border-left-color: var(--amber); }
+
+        .log-meta {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            font-family: var(--font);
+        }
+
+        select.filter-select {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-family: var(--font);
+            font-size: 0.8rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        /* Health Banner */
+        .health-banner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px 24px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            box-shadow: 0 2px 10px rgba(28, 27, 31, 0.05);
+            transition: border-color 150ms ease-out, background 150ms ease-out;
+        }
+
+        .health-banner.healthy { border-left: 4px solid var(--green); }
+        .health-banner.degraded { border-left: 4px solid var(--amber); }
+        .health-banner.unhealthy { border-left: 4px solid var(--red); }
+
+        .health-main {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .health-icon-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--surface-tint);
+        }
+
+        .health-banner.healthy .health-icon-box { background: var(--green-bg); color: var(--green); }
+        .health-banner.degraded .health-icon-box { background: var(--amber-bg); color: var(--amber); }
+        .health-banner.unhealthy .health-icon-box { background: var(--red-bg); color: var(--red); }
+
+        .health-info h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .health-info p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .health-items {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 24px;
+            font-size: 0.8rem;
+        }
+
+        .health-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .health-item-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        .health-item-value {
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        @media (max-width: 720px) {
+            .worker-id { max-width: 120px; }
+            .header { flex-direction: column; align-items: stretch; }
+            .header-controls { justify-content: flex-start; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="logo">
-        <img src="static/kafka_pilot.png" alt="Kafka Pilot Logo",>
+    <div class="toast-wrap" id="toasts"></div>
+
+    <div class="app">
+        <header class="header">
+            <div class="brand">
+                <div class="brand-logo-frame">
+                    <img
+                        class="brand-logo"
+                        src="static/kafka_pilot.png"
+                        alt="Kafka Pilot"
+                        width="216"
+                        height="216"
+                    >
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="btn btn-sm" id="healthPillBtn" type="button" onclick="openHealthModal()" title="View System & Supervisor Health">
+                    <span class="material-symbols-rounded" aria-hidden="true" style="font-size: 18px;">monitor_heart</span>
+                    <span id="healthPillText">Health: —</span>
+                </button>
+                <span class="status-pill" id="clusterStatus"><span class="dot"></span> —</span>
+                <span class="meta-text" id="lastUpdated">—</span>
+                <label class="toggle">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    Auto-refresh
+                </label>
+                <button class="btn icon-btn" id="themeBtn" type="button" onclick="toggleTheme()" aria-label="Switch color theme" title="Switch color theme">
+                    <span class="material-symbols-rounded" id="themeIcon" aria-hidden="true">dark_mode</span>
+                </button>
+                <button class="btn btn-primary" id="refreshBtn" type="button" onclick="loadDashboard()">
+                    <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <section class="health-banner healthy" id="healthBanner">
+            <div class="health-main">
+                <div class="health-icon-box">
+                    <span class="material-symbols-rounded" id="healthIcon">check_circle</span>
+                </div>
+                <div class="health-info">
+                    <h3 id="healthTitle">System Operational <span class="badge ok" id="healthHttpBadge">HTTP 200</span></h3>
+                    <p id="healthDesc">All services and Kafka workers are running normally.</p>
+                </div>
+            </div>
+            <div class="health-items">
+                <div class="health-item">
+                    <span class="health-item-label">Redis</span>
+                    <span class="health-item-value" id="healthRedisVal"><span class="badge ok">connected</span></span>
+                </div>
+                <div class="health-item">
+                    <span class="health-item-label">Kafka Stream</span>
+                    <span class="health-item-value" id="healthKafkaVal"><span class="badge ok">healthy</span></span>
+                </div>
+                <div class="health-item">
+                    <span class="health-item-label">Supervisor</span>
+                    <span class="health-item-value" id="healthSupervisorVal"><span class="badge ok">active</span></span>
+                </div>
+                <div class="health-item">
+                    <span class="health-item-label">Supervised Workers</span>
+                    <span class="health-item-value" id="healthWorkersVal">—</span>
+                </div>
+                <div class="health-item">
+                    <span class="health-item-label">Degraded / Restarting</span>
+                    <span class="health-item-value" id="healthRestartVal">—</span>
+                </div>
+                <div style="display:flex; gap: 8px;">
+                    <button class="btn btn-sm btn-primary" type="button" onclick="openHealthModal()">
+                        <span class="material-symbols-rounded" style="font-size:16px;">health_and_safety</span>
+                        Diagnostics
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="summary-grid" id="summaryGrid">
+            <div class="loading">Loading overview…</div>
+        </section>
+
+        <section class="topics" id="topics"></section>
     </div>
-    <div class="container">
-        <h1>Kafka Worker Dashboard</h1>
-        <div id="errorMessage" class="error-message" style="display: none;"></div>
-        <div id="workers"></div>
-        <div id="logsModal" class="modal">
-            <div class="modal-content">
-                <span class="modal-close" onclick="closeModal()">&times;</span>
-                <div class="modal-header" id="modalHeader"></div>
-                <div id="modalLogs"></div>
+
+    <div class="modal-backdrop" id="logsModal" onclick="backdropClose(event)">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="logsTitle">
+            <div class="modal-header">
+                <div style="flex:1">
+                    <h2 id="logsTitle">Logs</h2>
+                    <div class="sub" id="logsSub"></div>
+                </div>
+                <button class="btn btn-ghost btn-sm" type="button" onclick="closeLogs()">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    Close
+                </button>
+            </div>
+            <div class="modal-toolbar">
+                <select class="filter-select" id="logLimit" onchange="reloadLogs()">
+                    <option value="50">50 lines</option>
+                    <option value="200" selected>200 lines</option>
+                    <option value="500">500 lines</option>
+                    <option value="1000">1000 lines</option>
+                </select>
+                <button class="btn btn-sm" onclick="reloadLogs()">Reload</button>
+                <button class="btn btn-sm btn-danger" onclick="clearLogs()">Clear logs</button>
+            </div>
+            <div class="modal-body">
+                <div class="log-meta" id="logsMeta"></div>
+                <div id="logsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="seekModal" onclick="backdropClose(event)">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="seekTitle" style="max-width: 540px;">
+            <div class="modal-header">
+                <div style="flex:1">
+                    <h2 id="seekTitle">Seek Topic Offsets</h2>
+                    <div class="sub" id="seekSub">Rewind or advance consumer offsets by time</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" type="button" onclick="closeSeekModal()">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    Close
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px; font-family: var(--font);">
+                <div style="margin-bottom: 16px;">
+                    <label style="display:block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--text-muted);">Quick Presets</label>
+                    <div style="display:flex; flex-wrap:wrap; gap: 6px;">
+                        <button class="btn btn-sm" type="button" onclick="setSeekPreset('open')">Today's Open (09:00)</button>
+                        <button class="btn btn-sm" type="button" onclick="setSeekPreset('15m')">-15 Min</button>
+                        <button class="btn btn-sm" type="button" onclick="setSeekPreset('1h')">-1 Hour</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label for="seekDateTime" style="display:block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--text-muted);">Target Date & Time</label>
+                    <input type="datetime-local" id="seekDateTime" step="1" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg-elevated); color: var(--text); font-family: var(--mono); font-size: 0.85rem;" oninput="updateUtcPreview()">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label for="seekTimezone" style="display:block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--text-muted);">Timezone</label>
+                    <select id="seekTimezone" class="filter-select" style="width: 100%;" onchange="updateUtcPreview()">
+                        <option value="Asia/Tehran" selected>Asia/Tehran (UTC+03:30) — Market Time</option>
+                        <option value="UTC">UTC (UTC+00:00) — Universal Time</option>
+                        <option value="local">Browser Local Time</option>
+                    </select>
+                </div>
+
+                <div id="seekUtcPreview" style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); background: var(--surface-tint); padding: 8px 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--border);">
+                    Resolved UTC: <span id="seekUtcValue" style="color: var(--accent); font-weight: 600;">—</span>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                    <label style="display:flex; align-items:center; gap: 8px; font-size: 0.8rem; cursor: pointer; color: var(--text);">
+                        <input type="checkbox" id="seekResetState" checked style="accent-color: var(--accent); width: 16px; height: 16px;">
+                        <span>Reset processor in-memory state & deduplication cursors</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-toolbar" style="justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-sm" type="button" onclick="closeSeekModal()">Cancel</button>
+                <button class="btn btn-sm btn-primary" id="btnConfirmSeek" type="button" onclick="applySeek()">Apply & Seek</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="healthModal" onclick="backdropClose(event)">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="healthTitleModal" style="max-width: 840px;">
+            <div class="modal-header">
+                <div style="flex:1">
+                    <h2 id="healthTitleModal" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="material-symbols-rounded" style="color: var(--accent);">monitor_heart</span>
+                        System Health & Worker Supervisor
+                    </h2>
+                    <div class="sub" id="healthSubModal">Live Kubernetes probe status, Redis connection, and supervised worker tasks</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" type="button" onclick="closeHealthModal()">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    Close
+                </button>
+            </div>
+            <div class="modal-toolbar" style="gap: 8px;">
+                <div style="display:flex; gap: 6px;">
+                    <button class="btn btn-sm btn-primary" id="healthTabOverviewBtn" onclick="switchHealthTab('overview')">Overview</button>
+                    <button class="btn btn-sm" id="healthTabRawBtn" onclick="switchHealthTab('raw')">Raw /health JSON</button>
+                </div>
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                    <button class="btn btn-sm" onclick="copyHealthJson()">
+                        <span class="material-symbols-rounded" style="font-size:16px;">content_copy</span>
+                        Copy JSON
+                    </button>
+                    <button class="btn btn-sm" onclick="loadHealth(true)">
+                        <span class="material-symbols-rounded" style="font-size:16px;">refresh</span>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px;">
+                <div id="healthOverviewTab">
+                    <div class="health-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                        <div class="stat-card" style="padding: 14px 16px;">
+                            <div class="label">K8s Probe Endpoint</div>
+                            <div class="value" id="modalK8sStatus" style="font-size: 1.15rem; display: flex; align-items: center; gap: 6px;">
+                                <span class="badge ok">HTTP 200</span>
+                            </div>
+                            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">Served at <code>/health</code></div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 16px;">
+                            <div class="label">Redis Data Node</div>
+                            <div class="value" id="modalRedisStatus" style="font-size: 1.15rem; display: flex; align-items: center; gap: 6px;">
+                                <span class="badge ok">connected</span>
+                            </div>
+                            <div id="modalRedisDetail" style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">Ping healthy</div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 16px;">
+                            <div class="label">Kafka Stream Health</div>
+                            <div class="value" id="modalKafkaStatus" style="font-size: 1.15rem; display: flex; align-items: center; gap: 6px;">
+                                <span class="badge ok">connected</span>
+                            </div>
+                            <div id="modalKafkaDetail" style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">All consumer loops active</div>
+                        </div>
+                        <div class="stat-card" style="padding: 14px 16px;">
+                            <div class="label">Worker Supervisor</div>
+                            <div class="value" id="modalSupervisorStatus" style="font-size: 1.15rem; display: flex; align-items: center; gap: 6px;">
+                                <span class="badge ok">active</span>
+                            </div>
+                            <div id="modalSupervisorDetail" style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">10s check · 30s grace · max 5 retries</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <h4 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                            Supervised Worker Pool
+                        </h4>
+                        <span id="modalWorkerCountsBadge" class="badge neutral">—</span>
+                    </div>
+
+                    <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg-card); max-height: 280px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Topic</th>
+                                    <th>Worker ID</th>
+                                    <th>Status</th>
+                                    <th>Retries</th>
+                                    <th>Last Restart</th>
+                                    <th>Last Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalWorkersTableBody">
+                                <tr><td colspan="6" class="empty-state">Loading supervised workers…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="healthRawTab" style="display:none;">
+                    <div style="background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 420px; overflow: auto;">
+                        <pre id="healthJsonContent" style="font-family: var(--mono); font-size: 0.75rem; color: var(--text); white-space: pre-wrap; word-break: break-all;"></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Polyfill for crypto.randomUUID
-        if (!crypto.randomUUID) {
-            crypto.randomUUID = function() {
-                const bytes = new Uint8Array(16);
-                crypto.getRandomValues(bytes);
-                bytes[6] = (bytes[6] & 0x0f) | 0x40; // Set version 4
-                bytes[8] = (bytes[8] & 0x3f) | 0x80; // Set variant
-                const hex = Array.from(bytes)
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-                return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-            };
+        const REFRESH_MS = 8000;
+        const APP_BASE = window.location.pathname.replace(/\/admin\/?$/, "");
+        let refreshTimer = null;
+        let openTopics = new Set();
+        let currentLogTopic = null;
+        let currentLogWorker = null;
+        let overviewCache = null;
+
+        function syncThemeIcon() {
+            const isDark = document.documentElement.dataset.theme === "dark";
+            document.getElementById("themeIcon").textContent = isDark ? "light_mode" : "dark_mode";
+            document.getElementById("themeBtn").setAttribute(
+                "aria-label", isDark ? "Switch to light theme" : "Switch to dark theme"
+            );
         }
 
-        async function fetchWorkers() {
-            try {
-                const response = await fetch('/api/workers', { cache: 'no-store' });
-                if (!response.ok) {
-                    throw new Error(`HTTP error: ${response.status}`);
-                }
-                const workers = await response.json();
-                if (workers.error) {
-                    showError(`Error: ${workers.error} - ${workers.details}`);
-                    return;
-                }
-                const container = document.getElementById('workers');
-                let html = '<table><tr><th>Topic</th><th>Worker ID</th><th>Status</th><th>Partitions</th><th>Actions</th></tr>';
+        function toggleTheme() {
+            const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+            document.documentElement.dataset.theme = next;
+            localStorage.setItem("kafka-pilot-theme", next);
+            syncThemeIcon();
+        }
 
-                for (const [topic, workerData] of Object.entries(workers)) {
-                    for (const [workerId, data] of Object.entries(workerData)) {
-                        const statusClass = data.status === 'running' ? 'running' : data.status === 'stopped' ? 'stopped' : 'failed';
-                        html += `<tr>
-                            <td>${topic}</td>
-                            <td>${workerId}</td>
-                            <td class="${statusClass}">${data.status}</td>
-                            <td>${data.partitions ? data.partitions.join(', ') : ''}</td>
+        function toast(message, type = "info") {
+            const wrap = document.getElementById("toasts");
+            const el = document.createElement("div");
+            el.className = `toast ${type}`;
+            el.textContent = message;
+            wrap.appendChild(el);
+            setTimeout(() => el.remove(), 4200);
+        }
+
+        async function api(path, options = {}) {
+            const res = await fetch(path, {
+                cache: "no-store",
+                headers: { "Accept": "application/json", ...(options.headers || {}) },
+                ...options,
+            });
+            let data = null;
+            try { data = await res.json(); } catch (_) { data = null; }
+            if (!res.ok) {
+                const detail = (data && (data.detail || data.message || data.error)) || res.statusText;
+                throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+            }
+            return data;
+        }
+
+        function fmt(n) {
+            if (n == null) return "0";
+            return Number(n).toLocaleString();
+        }
+
+        function shortId(id) {
+            if (!id) return "—";
+            return id.length > 12 ? id.slice(0, 8) + "…" + id.slice(-4) : id;
+        }
+
+        function statusBadge(status) {
+            const s = (status || "unknown").toLowerCase();
+            if (s === "running") return `<span class="badge ok">running</span>`;
+            if (s === "stopped") return `<span class="badge err">stopped</span>`;
+            if (s === "failed") return `<span class="badge warn">failed</span>`;
+            return `<span class="badge neutral">${esc(s)}</span>`;
+        }
+
+        function renderSummary(overview) {
+            const t = overview.totals || {};
+            const status = overview.status || "unknown";
+            const pill = document.getElementById("clusterStatus");
+            pill.className = `status-pill ${status}`;
+            pill.innerHTML = `<span class="dot"></span> ${status}`;
+
+            document.getElementById("summaryGrid").innerHTML = `
+                <div class="stat-card"><div class="label">Topics</div><div class="value accent">${fmt(t.topics)}</div></div>
+                <div class="stat-card"><div class="label">Running</div><div class="value green">${fmt(t.running)}</div></div>
+                <div class="stat-card"><div class="label">Stopped</div><div class="value ${t.stopped ? "red" : ""}">${fmt(t.stopped)}</div></div>
+                <div class="stat-card"><div class="label">Configured</div><div class="value">${fmt(t.configured_workers)}</div></div>
+                <div class="stat-card"><div class="label">Processed</div><div class="value">${fmt(t.processed)}</div></div>
+                <div class="stat-card"><div class="label">Retries</div><div class="value amber">${fmt(t.retries)}</div></div>
+                <div class="stat-card"><div class="label">DLQ</div><div class="value ${t.dlq ? "red" : ""}">${fmt(t.dlq)}</div></div>
+                <div class="stat-card"><div class="label">Lag (sum)</div><div class="value ${t.lag ? "amber" : ""}">${fmt(t.lag)}</div></div>
+            `;
+        }
+
+        function renderTopics(topics) {
+            const container = document.getElementById("topics");
+            if (!topics || !topics.length) {
+                container.innerHTML = `<div class="empty-state">No registered topics / processors.</div>`;
+                return;
+            }
+
+            container.innerHTML = topics.map(topic => {
+                const isOpen = openTopics.has(topic.topic);
+                const m = topic.metrics || {};
+                const workers = topic.workers || [];
+                const healthBadge = topic.healthy
+                    ? `<span class="badge ok">${topic.running} running</span>`
+                    : `<span class="badge err">no running workers</span>`;
+                const lagBadge = topic.lag_total != null
+                    ? `<span class="badge ${topic.lag_total > 0 ? "warn" : "neutral"}">lag ${fmt(topic.lag_total)}</span>`
+                    : `<span class="badge neutral">lag —</span>`;
+
+                const rows = workers.length
+                    ? workers.map(w => `
+                        <tr>
+                            <td title="${esc(w.worker_id)}"><div class="worker-id">${esc(shortId(w.worker_id))}</div></td>
+                            <td>${statusBadge(w.status)}</td>
+                            <td class="partitions">${(w.partitions && w.partitions.length) ? w.partitions.join(", ") : "—"}</td>
+                            <td class="partitions">${w.lag != null ? fmt(w.lag) : "—"}</td>
+                            <td><span class="badge neutral">${w.source || "—"}</span></td>
                             <td>
-                                ${data.status === 'running' ?
-                                    `<button class="action-btn stop-btn" onclick="stopWorker('${topic}', '${workerId}')">Stop</button>` :
-                                    `<button class="action-btn start-btn" onclick="startWorker('${topic}', '${workerId}')">Start</button>`}
-                                <button class="action-btn logs-btn" onclick="viewLogs('${topic}', '${workerId}')">View Logs</button>
+                                <div class="row-actions">
+                                    ${w.status === "running"
+                                        ? `<button class="btn btn-sm btn-danger" data-action="stop" data-topic="${esc(topic.topic)}" data-id="${esc(w.worker_id)}" ${w.source !== "memory" ? "disabled title='Redis-only orphan'" : ""}>Stop</button>`
+                                        : `<button class="btn btn-sm btn-success" data-action="start" data-topic="${esc(topic.topic)}" data-id="${esc(w.worker_id)}" ${w.source !== "memory" ? "disabled title='Redis-only orphan — use Start all / Spawn'" : ""}>Start</button>`
+                                    }
+                                    <button class="btn btn-sm" data-action="logs" data-topic="${esc(topic.topic)}" data-id="${esc(w.worker_id)}">Logs</button>
+                                </div>
                             </td>
-                        </tr>`;
+                        </tr>
+                    `).join("")
+                    : `<tr><td colspan="6" class="empty-state">No workers registered for this topic yet.</td></tr>`;
+
+                return `
+                <article class="topic-card ${isOpen ? "open" : ""}" data-topic="${esc(topic.topic)}">
+                    <div class="topic-header" data-toggle="${esc(topic.topic)}">
+                        <div class="topic-title-block">
+                            <div class="topic-name"><span class="chevron">▸</span> ${esc(topic.topic)}</div>
+                            <div class="topic-processor">${esc(topic.processor)} · configured ${topic.configured_workers} worker(s)</div>
+                        </div>
+                        <div class="topic-badges">
+                            ${healthBadge}
+                            ${lagBadge}
+                            <span class="badge metric">proc ${fmt(m.processed)}</span>
+                            <span class="badge ${m.retries ? "warn" : "neutral"}">retry ${fmt(m.retries)}</span>
+                            <span class="badge ${m.dlq ? "err" : "neutral"}">dlq ${fmt(m.dlq)}</span>
+                        </div>
+                        <div class="topic-actions">
+                            <button class="btn btn-sm btn-primary" data-action="seek-time" data-topic="${esc(topic.topic)}">Seek</button>
+                            <button class="btn btn-sm btn-success" data-action="start-all" data-topic="${esc(topic.topic)}">Start all</button>
+                            <button class="btn btn-sm btn-danger" data-action="stop-all" data-topic="${esc(topic.topic)}">Stop all</button>
+                            <button class="btn btn-sm" data-action="spawn" data-topic="${esc(topic.topic)}">Spawn</button>
+                            <button class="btn btn-sm" data-action="reset-metrics" data-topic="${esc(topic.topic)}">Reset metrics</button>
+                        </div>
+                    </div>
+                    <div class="topic-body">
+                        <div class="metrics-row">
+                            <div>Processed<strong>${fmt(m.processed)}</strong></div>
+                            <div>Retries<strong>${fmt(m.retries)}</strong></div>
+                            <div>Errors<strong>${fmt(m.errors)}</strong></div>
+                            <div>DLQ<strong>${fmt(m.dlq)}</strong></div>
+                            <div>Lag<strong>${topic.lag_total != null ? fmt(topic.lag_total) : "—"}</strong></div>
+                            <div>In memory / Redis<strong>${workers.filter(w => w.source === "memory").length} / ${workers.length}</strong></div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Worker ID</th>
+                                    <th>Status</th>
+                                    <th>Partitions</th>
+                                    <th>Lag</th>
+                                    <th>Source</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </article>`;
+            }).join("");
+        }
+
+        function esc(s) {
+            return String(s)
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        let healthCache = null;
+        let currentHealthTab = "overview";
+
+        function openHealthModal() {
+            document.getElementById("healthModal").classList.add("open");
+            switchHealthTab("overview");
+            loadHealth();
+        }
+
+        function closeHealthModal() {
+            document.getElementById("healthModal").classList.remove("open");
+        }
+
+        function switchHealthTab(tab) {
+            currentHealthTab = tab;
+            const isOverview = tab === "overview";
+            document.getElementById("healthOverviewTab").style.display = isOverview ? "block" : "none";
+            document.getElementById("healthRawTab").style.display = isOverview ? "none" : "block";
+            document.getElementById("healthTabOverviewBtn").className = `btn btn-sm ${isOverview ? "btn-primary" : ""}`;
+            document.getElementById("healthTabRawBtn").className = `btn btn-sm ${!isOverview ? "btn-primary" : ""}`;
+        }
+
+        function copyHealthJson() {
+            if (!healthCache) {
+                toast("No health data to copy", "info");
+                return;
+            }
+            const str = JSON.stringify(healthCache, null, 2);
+            navigator.clipboard.writeText(str).then(() => {
+                toast("Health JSON copied to clipboard", "success");
+            }).catch(err => {
+                toast("Failed to copy JSON: " + err, "error");
+            });
+        }
+
+        function renderHealthBanner(data) {
+            const banner = document.getElementById("healthBanner");
+            const status = (data.status || "healthy").toLowerCase();
+            const httpStatus = data.status_code || (status === "unhealthy" ? 503 : 200);
+
+            banner.className = `health-banner ${status}`;
+
+            const iconEl = document.getElementById("healthIcon");
+            const titleEl = document.getElementById("healthTitle");
+            const httpBadgeEl = document.getElementById("healthHttpBadge");
+            const descEl = document.getElementById("healthDesc");
+
+            httpBadgeEl.textContent = `HTTP ${httpStatus}`;
+            httpBadgeEl.className = `badge ${httpStatus === 200 ? "ok" : "err"}`;
+
+            const kafka = data.kafka || {};
+            const kafkaOk = kafka.status === "connected";
+            const kafkaErrors = kafka.errors || [];
+
+            if (status === "healthy") {
+                iconEl.textContent = "check_circle";
+                titleEl.childNodes[0].nodeValue = "System Operational ";
+                descEl.textContent = "All services and Kafka workers are running normally.";
+            } else if (status === "degraded") {
+                iconEl.textContent = "warning";
+                titleEl.childNodes[0].nodeValue = "System Degraded ";
+                if (kafkaErrors.length > 0) {
+                    descEl.textContent = `Kafka error on ${kafkaErrors[0].topic}: ${kafkaErrors[0].error}`;
+                } else {
+                    descEl.textContent = "One or more Kafka workers are currently restarting or degraded.";
+                }
+            } else {
+                iconEl.textContent = "error";
+                titleEl.childNodes[0].nodeValue = "System Unhealthy ";
+                descEl.textContent = "Critical alert: Redis disconnected or worker permanently failed.";
+            }
+
+            // Header Pill
+            const pillText = document.getElementById("healthPillText");
+            const pillBtn = document.getElementById("healthPillBtn");
+            pillText.textContent = `Health: ${status.toUpperCase()} (${httpStatus})`;
+            if (status === "healthy") {
+                pillBtn.style.borderColor = "var(--green)";
+                pillBtn.style.background = "var(--green-bg)";
+                pillBtn.style.color = "var(--green)";
+            } else if (status === "degraded") {
+                pillBtn.style.borderColor = "var(--amber)";
+                pillBtn.style.background = "var(--amber-bg)";
+                pillBtn.style.color = "var(--amber)";
+            } else {
+                pillBtn.style.borderColor = "var(--red)";
+                pillBtn.style.background = "var(--red-bg)";
+                pillBtn.style.color = "var(--red)";
+            }
+
+            // Redis
+            const redisOk = data.redis && data.redis.status === "connected";
+            document.getElementById("healthRedisVal").innerHTML = redisOk
+                ? `<span class="badge ok">connected</span>`
+                : `<span class="badge err" title="${esc(data.redis ? data.redis.error || '' : '')}">disconnected</span>`;
+
+            // Kafka Stream
+            document.getElementById("healthKafkaVal").innerHTML = kafkaOk
+                ? `<span class="badge ok">healthy</span>`
+                : `<span class="badge warn" title="${esc(kafkaErrors[0] ? kafkaErrors[0].error || '' : '')}">${kafkaErrors.length} error${kafkaErrors.length > 1 ? 's' : ''}</span>`;
+
+            // Supervisor
+            const sup = data.supervisor || {};
+            const supRunning = sup.supervisor_running;
+            document.getElementById("healthSupervisorVal").innerHTML = supRunning
+                ? `<span class="badge ok">active</span>`
+                : `<span class="badge err">stopped</span>`;
+
+            const total = sup.total_workers || 0;
+            const active = sup.active_workers || 0;
+            document.getElementById("healthWorkersVal").textContent = `${active} / ${total} active`;
+
+            const restarting = sup.restarting_workers || 0;
+            const degraded = sup.degraded_workers || 0;
+            const failed = sup.failed_workers || 0;
+            document.getElementById("healthRestartVal").innerHTML = `
+                <span class="badge ${degraded > 0 ? "warn" : "neutral"}">${degraded} degraded</span>
+                <span class="badge ${restarting > 0 ? "warn" : "neutral"}">${restarting} restarting</span>
+                <span class="badge ${failed > 0 ? "err" : "neutral"}">${failed} failed</span>
+            `;
+        }
+
+        function renderHealthModal(data) {
+            const status = (data.status || "healthy").toLowerCase();
+            const httpStatus = data.status_code || (status === "unhealthy" ? 503 : 200);
+
+            // K8s Status
+            document.getElementById("modalK8sStatus").innerHTML = `
+                <span class="badge ${httpStatus === 200 ? "ok" : "err"}">HTTP ${httpStatus}</span>
+                <span style="font-size: 0.85rem; font-weight: 600; color: ${httpStatus === 200 ? "var(--green)" : "var(--red)"};">
+                    ${httpStatus === 200 ? "Passing" : "Failing Probe"}
+                </span>
+            `;
+
+            // Redis
+            const redis = data.redis || {};
+            const redisOk = redis.status === "connected";
+            document.getElementById("modalRedisStatus").innerHTML = `
+                <span class="badge ${redisOk ? "ok" : "err"}">${esc(redis.status || "unknown")}</span>
+            `;
+            document.getElementById("modalRedisDetail").textContent = redisOk
+                ? "Ping successful · storage ready"
+                : `Error: ${redis.error || "unreachable"}`;
+
+            // Kafka
+            const kafka = data.kafka || {};
+            const kafkaOk = kafka.status === "connected";
+            const kafkaErrors = kafka.errors || [];
+            document.getElementById("modalKafkaStatus").innerHTML = `
+                <span class="badge ${kafkaOk ? "ok" : "warn"}">${esc(kafka.status || "unknown")}</span>
+            `;
+            document.getElementById("modalKafkaDetail").textContent = kafkaOk
+                ? "All consumers receiving / ready"
+                : `${kafkaErrors.length} worker(s) reporting Kafka fetch/connection errors`;
+
+            // Supervisor
+            const sup = data.supervisor || {};
+            document.getElementById("modalSupervisorStatus").innerHTML = `
+                <span class="badge ${sup.supervisor_running ? "ok" : "err"}">${sup.supervisor_running ? "active" : "stopped"}</span>
+                <span class="badge ${sup.status === "healthy" ? "ok" : (sup.status === "degraded" ? "warn" : "err")}">${esc(sup.status || "unknown")}</span>
+            `;
+            document.getElementById("modalWorkerCountsBadge").textContent =
+                `${sup.active_workers || 0} active · ${sup.degraded_workers || 0} degraded · ${sup.restarting_workers || 0} restarting · ${sup.failed_workers || 0} failed · ${sup.stopped_workers || 0} stopped`;
+
+            // Workers Table
+            const workers = sup.workers || [];
+            const tbody = document.getElementById("modalWorkersTableBody");
+            if (!workers.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No workers registered under supervisor.</td></tr>`;
+            } else {
+                tbody.innerHTML = workers.map(w => {
+                    const st = (w.state || "unknown").toLowerCase();
+                    let badgeCls = "neutral";
+                    if (st === "running") badgeCls = "ok";
+                    else if (st === "degraded" || st === "restarting") badgeCls = "warn";
+                    else if (st === "failed") badgeCls = "err";
+
+                    const errorText = w.last_error ? esc(w.last_error) : "—";
+                    const lastRestartText = w.last_restart_at ? new Date(w.last_restart_at).toLocaleTimeString() : "—";
+                    const retriesBadge = w.restart_count > 0
+                        ? `<span class="badge ${w.restart_count >= (w.max_retries || 5) ? "err" : "warn"}">${w.restart_count} / ${w.max_retries || 5}</span>`
+                        : `<span class="badge neutral">0 / ${w.max_retries || 5}</span>`;
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${esc(w.topic || "—")}</td>
+                            <td title="${esc(w.worker_id)}"><div class="worker-id">${esc(shortId(w.worker_id))}</div></td>
+                            <td><span class="badge ${badgeCls}">${esc(st)}</span></td>
+                            <td>${retriesBadge}</td>
+                            <td style="font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted);">${lastRestartText}</td>
+                            <td style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: ${w.last_error ? "var(--red)" : "var(--text-dim)"};" title="${errorText}">${errorText}</td>
+                        </tr>
+                    `;
+                }).join("");
+            }
+
+            // Raw JSON
+            document.getElementById("healthJsonContent").textContent = JSON.stringify(data, null, 2);
+        }
+
+        function renderHealthBannerError(err) {
+            const banner = document.getElementById("healthBanner");
+            banner.className = "health-banner unhealthy";
+            document.getElementById("healthIcon").textContent = "error";
+            document.getElementById("healthTitle").childNodes[0].nodeValue = "Health Check Failed ";
+            document.getElementById("healthHttpBadge").textContent = "HTTP 503";
+            document.getElementById("healthHttpBadge").className = "badge err";
+            document.getElementById("healthDesc").textContent = "Could not fetch health status: " + err.message;
+            document.getElementById("healthPillText").textContent = "Health: ERROR";
+        }
+
+        async function loadHealth(notify = false) {
+            try {
+                let data = null;
+                try {
+                    data = await api(`${APP_BASE}/api/admin/health`);
+                } catch (_) {
+                    data = await api(`/health`);
+                }
+                healthCache = data;
+                renderHealthBanner(data);
+                renderHealthModal(data);
+                if (notify) toast("Health status refreshed", "success");
+            } catch (e) {
+                renderHealthBannerError(e);
+                if (notify) toast("Health check failed: " + e.message, "error");
+            }
+        }
+
+        async function loadDashboard() {
+            const refreshBtn = document.getElementById("refreshBtn");
+            refreshBtn.disabled = true;
+            try {
+                const [overviewRes, healthRes] = await Promise.allSettled([
+                    api(`${APP_BASE}/api/admin/overview`),
+                    loadHealth()
+                ]);
+                if (overviewRes.status === "fulfilled") {
+                    const overview = overviewRes.value;
+                    overviewCache = overview;
+                    renderSummary(overview);
+                    renderTopics(overview.topics || []);
+                    document.getElementById("lastUpdated").textContent =
+                        "Updated " + new Date().toLocaleTimeString();
+                    if (!overview.redis_ok) {
+                        toast("Redis is unavailable — status may be incomplete", "error");
                     }
-                }
-                html += '</table>';
-                container.innerHTML = html;
-                document.getElementById('errorMessage').style.display = 'none';
-            } catch (error) {
-                showError(`Error fetching workers: ${error.message}`);
-            }
-        }
-
-        async function startWorker(topic, workerId) {
-            try {
-                const response = await fetch(`/api/workers/${topic}/${workerId}/start`, { method: 'POST' });
-                const result = await response.json();
-                if (result.status === 'started') {
-                    showSuccess(`Worker ${workerId} for topic ${topic} started`);
-                    fetchWorkers();
                 } else {
-                    showError(`Error: ${result.message || 'Failed to start worker'}`);
+                    toast("Failed to load overview: " + overviewRes.reason.message, "error");
                 }
-            } catch (error) {
-                showError(`Error starting worker: ${error.message}`);
+            } catch (e) {
+                toast("Failed to load dashboard: " + e.message, "error");
+            } finally {
+                refreshBtn.disabled = false;
             }
         }
 
-        async function stopWorker(topic, workerId) {
+        async function handleAction(action, topic, workerId) {
             try {
-                const response = await fetch(`/api/workers/${topic}/${workerId}/stop`, { method: 'POST' });
-                const result = await response.json();
-                if (result.status === 'stopped') {
-                    showSuccess(`Worker ${workerId} for topic ${topic} stopped`);
-                    fetchWorkers();
-                } else {
-                    showError(`Error: ${result.message || 'Failed to stop worker'}`);
-                }
-            } catch (error) {
-                showError(`Error stopping worker: ${error.message}`);
-            }
-        }
-
-        async function viewLogs(topic, workerId) {
-            try {
-                const response = await fetch(`/api/logs/${topic}/${workerId}`);
-                const logs = await response.json();
-                if (logs.error) {
-                    showError(`Error fetching logs: ${logs.details}`);
+                if (action === "start") {
+                    const r = await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/workers/${encodeURIComponent(workerId)}/start`, { method: "POST" });
+                    toast(r.status === "already_running"
+                        ? `Already running: ${shortId(workerId)}`
+                        : `Started → ${shortId(r.worker_id)}`, "success");
+                } else if (action === "stop") {
+                    await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/workers/${encodeURIComponent(workerId)}/stop`, { method: "POST" });
+                    toast(`Stopped ${shortId(workerId)}`, "success");
+                } else if (action === "start-all") {
+                    const r = await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/workers/start-all`, { method: "POST" });
+                    toast(`Start all: ${r.started.length} started, ${r.already_running.length} already running`, "success");
+                } else if (action === "stop-all") {
+                    if (!confirm(`Stop all workers for ${topic}?`)) return;
+                    const r = await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/workers/stop-all`, { method: "POST" });
+                    toast(`Stop all: ${r.stopped.length} stopped`, "success");
+                } else if (action === "spawn") {
+                    const r = await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/workers/spawn`, { method: "POST" });
+                    toast(`Spawned ${shortId(r.worker_id)}`, "success");
+                } else if (action === "reset-metrics") {
+                    if (!confirm(`Reset metrics for ${topic}?`)) return;
+                    await api(`${APP_BASE}/api/admin/topics/${encodeURIComponent(topic)}/metrics/reset`, { method: "POST" });
+                    toast("Metrics reset", "success");
+                } else if (action === "seek-time") {
+                    openSeekModal(topic);
+                    return;
+                } else if (action === "logs") {
+                    openLogs(topic, workerId);
                     return;
                 }
-                const modal = document.getElementById('logsModal');
-                const modalHeader = document.getElementById('modalHeader');
-                const modalLogs = document.getElementById('modalLogs');
-                modalHeader.textContent = `Logs for Worker ${workerId} (Topic: ${topic})`;
-                modalLogs.innerHTML = logs.length > 0
-                    ? logs.map(log => `<div class="log-entry">${log}</div>`).join('')
-                    : '<div class="log-entry">No logs available</div>';
-                modal.style.display = 'flex';
-            } catch (error) {
-                showError(`Error fetching logs: ${error.message}`);
+                await loadDashboard();
+            } catch (e) {
+                toast(e.message, "error");
             }
         }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
+        let currentSeekTopic = null;
+
+        function openSeekModal(topic) {
+            currentSeekTopic = topic;
+            document.getElementById("seekTitle").textContent = "Seek Topic Offsets";
+            document.getElementById("seekSub").textContent = `Topic: ${topic}`;
+            document.getElementById("seekTimezone").value = "Asia/Tehran";
+            document.getElementById("seekResetState").checked = true;
+            setSeekPreset("open");
+            document.getElementById("seekModal").classList.add("open");
         }
 
-        function showSuccess(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.backgroundColor = '#e6ffed';
-            errorDiv.style.color = '#2ecc71';
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 3000);
+        function closeSeekModal() {
+            document.getElementById("seekModal").classList.remove("open");
+            currentSeekTopic = null;
         }
 
-        function closeModal() {
-            document.getElementById('logsModal').style.display = 'none';
+        function setSeekPreset(preset) {
+            const now = new Date();
+            let target = new Date();
+
+            if (preset === "open") {
+                const yyyy = target.getFullYear();
+                const mm = String(target.getMonth() + 1).padStart(2, '0');
+                const dd = String(target.getDate()).padStart(2, '0');
+                document.getElementById("seekDateTime").value = `${yyyy}-${mm}-${dd}T09:00:00`;
+            } else if (preset === "15m") {
+                target = new Date(now.getTime() - 15 * 60 * 1000);
+                document.getElementById("seekDateTime").value = formatLocalDateTime(target);
+            } else if (preset === "1h") {
+                target = new Date(now.getTime() - 60 * 60 * 1000);
+                document.getElementById("seekDateTime").value = formatLocalDateTime(target);
+            }
+            updateUtcPreview();
         }
 
-        window.onclick = function(event) {
-            const modal = document.getElementById('logsModal');
-            if (event.target === modal) {
-                closeModal();
+        function formatLocalDateTime(d) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const ss = String(d.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
+        }
+
+        function updateUtcPreview() {
+            const val = document.getElementById("seekDateTime").value;
+            const tz = document.getElementById("seekTimezone").value;
+            const preview = document.getElementById("seekUtcValue");
+            if (!val) {
+                preview.textContent = "—";
+                return;
+            }
+            try {
+                let dtStr = val;
+                if (tz === "Asia/Tehran") {
+                    dtStr = `${val}+03:30`;
+                } else if (tz === "UTC") {
+                    dtStr = `${val}Z`;
+                }
+                const d = new Date(dtStr);
+                if (isNaN(d.getTime())) {
+                    preview.textContent = "Invalid date";
+                } else {
+                    preview.textContent = d.toISOString() + " (" + d.getTime() + " ms)";
+                }
+            } catch (e) {
+                preview.textContent = "Error parsing date";
             }
         }
 
-        // Fetch workers on page load and refresh every 10 seconds
-        fetchWorkers();
-        setInterval(fetchWorkers, 10000);
+        async function applySeek() {
+            if (!currentSeekTopic) return;
+            const val = document.getElementById("seekDateTime").value;
+            if (!val) {
+                toast("Please select a date and time", "error");
+                return;
+            }
+            const tz = document.getElementById("seekTimezone").value;
+            const resetState = document.getElementById("seekResetState").checked;
+            const confirmBtn = document.getElementById("btnConfirmSeek");
+            confirmBtn.disabled = true;
+
+            try {
+                let datetime_str = val;
+                if (tz === "Asia/Tehran") {
+                    datetime_str = `${val}+03:30`;
+                } else if (tz === "UTC") {
+                    datetime_str = `${val}Z`;
+                }
+
+                const payload = {
+                    datetime_str: datetime_str,
+                    timezone_str: tz === "local" ? null : tz,
+                    reset_state: resetState
+                };
+
+                const res = await api(
+                    `${APP_BASE}/api/admin/topics/${encodeURIComponent(currentSeekTopic)}/seek-to-time`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                const count = res.workers_count || 0;
+                let totalParts = 0;
+                if (res.results) {
+                    res.results.forEach(r => {
+                        totalParts += Object.keys(r.seeked_partitions || {}).length;
+                    });
+                }
+                toast(`Seeked ${count} worker(s) across ${totalParts} partition(s) to ${res.target_utc}`, "success");
+                closeSeekModal();
+                await loadDashboard();
+            } catch (e) {
+                toast("Seek failed: " + e.message, "error");
+            } finally {
+                confirmBtn.disabled = false;
+            }
+        }
+
+        function openLogs(topic, workerId) {
+            currentLogTopic = topic;
+            currentLogWorker = workerId;
+            document.getElementById("logsTitle").textContent = "Worker logs";
+            document.getElementById("logsSub").textContent = `${topic} · ${workerId}`;
+            document.getElementById("logsModal").classList.add("open");
+            reloadLogs();
+        }
+
+        function closeLogs() {
+            document.getElementById("logsModal").classList.remove("open");
+            currentLogTopic = null;
+            currentLogWorker = null;
+        }
+
+        function backdropClose(e) {
+            if (e.target.id === "logsModal") closeLogs();
+            if (e.target.id === "seekModal") closeSeekModal();
+            if (e.target.id === "healthModal") closeHealthModal();
+        }
+
+        async function reloadLogs() {
+            if (!currentLogTopic || !currentLogWorker) return;
+            const limit = document.getElementById("logLimit").value;
+            try {
+                const data = await api(
+                    `${APP_BASE}/api/admin/topics/${encodeURIComponent(currentLogTopic)}/workers/${encodeURIComponent(currentLogWorker)}/logs?limit=${limit}`
+                );
+                document.getElementById("logsMeta").textContent =
+                    `Showing ${data.logs.length} of ${data.total} stored entries (newest first)`;
+                const content = document.getElementById("logsContent");
+                if (!data.logs.length) {
+                    content.innerHTML = `<div class="empty-state">No logs for this worker.</div>`;
+                    return;
+                }
+                content.innerHTML = data.logs.map(line => {
+                    const lower = String(line).toLowerCase();
+                    let cls = "log-line";
+                    if (lower.includes("error") || lower.includes("failed")) cls += " error-log";
+                    else if (lower.includes("dlq")) cls += " dlq-log";
+                    return `<div class="${cls}">${esc(line)}</div>`;
+                }).join("");
+            } catch (e) {
+                toast("Failed to load logs: " + e.message, "error");
+            }
+        }
+
+        async function clearLogs() {
+            if (!currentLogTopic || !currentLogWorker) return;
+            if (!confirm("Clear all stored logs for this worker?")) return;
+            try {
+                await api(
+                    `${APP_BASE}/api/admin/topics/${encodeURIComponent(currentLogTopic)}/workers/${encodeURIComponent(currentLogWorker)}/logs`,
+                    { method: "DELETE" }
+                );
+                toast("Logs cleared", "success");
+                reloadLogs();
+            } catch (e) {
+                toast(e.message, "error");
+            }
+        }
+
+        document.getElementById("topics").addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-action]");
+            if (btn) {
+                if (!btn.disabled) {
+                    handleAction(btn.dataset.action, btn.dataset.topic, btn.dataset.id);
+                }
+                return;
+            }
+
+            const toggle = e.target.closest("[data-toggle]");
+            if (!toggle) return;
+            const topic = toggle.getAttribute("data-toggle");
+            if (openTopics.has(topic)) openTopics.delete(topic);
+            else openTopics.add(topic);
+            const card = document.querySelector(`.topic-card[data-topic="${CSS.escape(topic)}"]`);
+            if (card) card.classList.toggle("open", openTopics.has(topic));
+        });
+
+        function setupAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = null;
+            if (document.getElementById("autoRefresh").checked) {
+                refreshTimer = setInterval(loadDashboard, REFRESH_MS);
+            }
+        }
+
+        document.getElementById("autoRefresh").addEventListener("change", setupAutoRefresh);
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                closeLogs();
+                closeSeekModal();
+                closeHealthModal();
+            }
+        });
+
+        syncThemeIcon();
+        loadDashboard();
+        setupAutoRefresh();
     </script>
 </body>
 </html>

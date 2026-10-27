@@ -17,7 +17,13 @@ def import_project_modules(path_or_package: str):
         root_package = path_or_package
 
     package = importlib.import_module(root_package)
-    package_path = pathlib.Path(package.__file__).parent
+    pkg_file = getattr(package, "__file__", None)
+    if pkg_file is not None:
+        package_paths = [str(pathlib.Path(pkg_file).parent)]
+    elif getattr(package, "__path__", None):
+        package_paths = list(package.__path__)
+    else:
+        return
 
-    for module_info in pkgutil.walk_packages([str(package_path)], prefix=root_package + "."):
+    for module_info in pkgutil.walk_packages(package_paths, prefix=root_package + "."):
         importlib.import_module(module_info.name)

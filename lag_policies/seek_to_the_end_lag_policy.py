@@ -1,24 +1,25 @@
 from kafka_pilot.lag_policies.lag_policy_interface import LagPolicyInterface
+from kafka_pilot.utils import logger
 
 
 class SeekToTheEndLagPolicy(LagPolicyInterface):
     """Lag policy that seeks Kafka partitions to the end (latest offset).
 
-    This policy moves all specified partitions to their latest offsets,
-    effectively skipping any pending backlog. It is useful when a consumer
-    should start processing only new incoming messages and ignore old ones.
-
-    Attributes:
-        partitions (List[Partition]): List of Kafka partitions being consumed.
-        consumer (AIOKafkaConsumer): The Kafka consumer instance.
+    Moves assigned partitions to their high watermarks and commits those offsets
+    so skipped backlog does not reappear after rebalance or restart.
     """
 
     async def execute(self):
-        """Execute the Seek-to-End lag policy.
+        """Seek assigned partitions to end and commit the new positions."""
+        partitions = list(self.partitions) if self.partitions else None
+        if partitions:
+            await self.consumer.seek_to_end(*partitions)
+            end_offsets = await self.consumer.end_offsets(partitions)
+        else:
+            await self.consumer.seek_to_end()
+            assigned = list(self.consumer.assignment())
+            end_offsets = await self.consumer.end_offsets(assigned) if assigned else {}
 
-         Seeks all partitions to the latest offset. No checks or conditions are applied.
-
-         Returns:
-             None
-         """
-        await self.consumer.seek_to_end()
+        if end_offsets:
+            await self.consumer.commit(end_offsets)
+            logger.info(f"Seeked to end and committed offsets for {len(end_offsets)} partition(s)")

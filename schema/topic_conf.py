@@ -18,7 +18,7 @@ class TopicConfig(BaseModel):
                                 description="Maximum number of leg between consumer and last produced message")
     kafka_bootstrap_servers: str = Field(default=None, description="kafka bootstrap servers")
     sasl_mechanism: str = Field(default=None, description="kafka sasl mechanism")
-    security_protocol: str = Field(default=None, description="kafka security protocol")
+    security_protocol: str = Field(default="PLAINTEXT", description="kafka security protocol")
     kafka_username: str = Field(default=None, description="kafka username")
     kafka_password: str = Field(default=None, description="kafka password")
     kafka_group_id: str = Field(
