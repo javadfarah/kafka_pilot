@@ -27,19 +27,24 @@ It provides a framework for building fault-tolerant Kafka consumers with retry l
 
 ```
 kafka_pilot/
-  ├── config.py              # Settings via Pydantic & environment variables
-  ├── main.py                # FastAPI entrypoint & lifecycle
-  ├── worker.py              # Kafka worker manager & consumer loop
-  ├── supervisor.py          # Background worker supervisor & auto-healing
-  ├── web_admin.py           # Admin API routes & dashboard
-  ├── publisher/             # Publisher abstractions (MessagePublisher)
-  ├── processors/            # Topic processors & MessageProcessor base
-  ├── lag_policies/          # Lag handling policies (SeekToEnd, StartOfDay)
-  ├── schema/                # TopicConf schema & validation
-  ├── db/
-  │   └── redis.py           # Redis client with Sentinel & lease management
-  ├── templates/             # Jinja2 dashboard templates & static assets
-  └── utils/                 # Logging & dynamic module discovery
+  ├── src/
+  │   └── kafka_pilot/
+  │       ├── config.py              # Settings via Pydantic & environment variables
+  │       ├── main.py                # FastAPI entrypoint & lifecycle
+  │       ├── worker.py              # Kafka worker manager & consumer loop
+  │       ├── supervisor.py          # Background worker supervisor & auto-healing
+  │       ├── web_admin.py           # Admin API routes & dashboard
+  │       ├── publisher/             # Publisher abstractions (MessagePublisher)
+  │       ├── processors/            # Topic processors & MessageProcessor base
+  │       ├── lag_policies/          # Lag handling policies (SeekToEnd, StartOfDay)
+  │       ├── schema/                # TopicConf schema & validation
+  │       ├── db/
+  │       │   └── redis.py           # Redis client with Sentinel & lease management
+  │       ├── templates/             # Jinja2 dashboard templates & static assets
+  │       └── utils/                 # Logging & dynamic module discovery
+  ├── tests/                         # Unit & integration test suite
+  ├── requirements.txt
+  └── README.md
 ```
 
 ---
@@ -99,12 +104,14 @@ KFP__KAFKA_CONF_DIRECTORY=./processors
 
 ### Using Uvicorn (recommended)
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src uvicorn kafka_pilot.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Or directly
 ```bash
-python main.py
+python -m src.kafka_pilot.main
+# or from src directory:
+cd src && python -m kafka_pilot.main
 ```
 
 ---
