@@ -16,7 +16,6 @@ It provides a framework for building fault-tolerant Kafka consumers with retry l
 - **Time-based offset seeking**: seek consumers to any specific ISO datetime with processor reset hooks
 - **Retry & DLQ** (Dead Letter Queue) handling
 - **Dynamic processor loading** – one or more workers per topic
-- **MessagePublisher Interface**: extensible abstraction for publishing outgoing data
 - **Modern Web Admin Panel**: real-time metrics, worker logs viewer, health probes, and manual actions
 - **Kubernetes-ready health checks**: `/api/admin/health` reflecting Redis, Kafka consumers, and worker states
 - **Clean modular architecture** following SOLID principles
@@ -32,7 +31,6 @@ kafka_pilot/
   ├── worker.py              # Kafka worker manager & consumer loop
   ├── supervisor.py          # Background worker supervisor & auto-healing
   ├── web_admin.py           # Admin API routes & dashboard
-  ├── publisher/             # Publisher abstractions (MessagePublisher)
   ├── processors/            # Topic processors & MessageProcessor base
   ├── lag_policies/          # Lag handling policies (SeekToEnd, StartOfDay)
   ├── schema/                # TopicConf schema & validation
