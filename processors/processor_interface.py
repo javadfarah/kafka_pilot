@@ -1,6 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Dict
+from datetime import datetime
+from typing import Dict, Optional
 
 from aiokafka.structs import ConsumerRecord
 
@@ -61,9 +62,6 @@ class MessageProcessor(ABC):
             logger.info(f"Processing message {message.value}")
             # Simulate processing
             await asyncio.sleep(0.1)
-            # Example condition for DLQ
-            if b"error" in message.value.lower():
-                self._should_send_to_dlq = True
         except Exception as e:
             logger.error(f"Processing error: {e}")
             raise
@@ -71,3 +69,11 @@ class MessageProcessor(ABC):
     def should_send_to_dlq(self) -> bool:
         """Check if message should be sent to DLQ."""
         return self._should_send_to_dlq
+
+    async def on_seek(self, target_dt: Optional[datetime] = None) -> None:
+        """Hook called when consumer offsets are seeked to a new position/time.
+        
+        Subclasses may override this to reset in-memory deduplication caches,
+        accumulators, or cursors.
+        """
+        pass
